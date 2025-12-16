@@ -5,15 +5,15 @@ on:
     tags:
       - "v*.*.*"
   workflow_dispatch:
+    inputs:
+      n8n_version:
+        description: "n8n version (example: 1.95.3)"
+        required: true
+        default: "1.95.3"
 
 permissions:
   contents: read
   packages: write
-
-
-  env:
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/n8n-ffmpeg/n8n-ffmpeg
-
 
 jobs:
   build:
@@ -22,6 +22,22 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set lowercase image name
+        id: img
+        run: |
+          OWNER_LC=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
+          REPO_LC=$(echo "${GITHUB_REPOSITORY#*/}" | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE_NAME=ghcr.io/${OWNER_LC}/${REPO_LC}/n8n-ffmpeg" >> $GITHUB_ENV
+
+      - name: Determine n8n version
+        id: ver
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${{ inputs.n8n_version }}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -36,11 +52,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract version from tag
-        id: vars
-        run: |
-          echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
@@ -48,8 +59,8 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           build-args: |
-            N8N_VERSION=${{ steps.vars.outputs.VERSION }}
-                  tags: |
-            ghcr.io/${{ github.repository_owner }}/n8n-ffmpeg/n8n-ffmpeg:${{ steps.vars.outputs.VERSION }}
-            ghcr.io/${{ github.repository_owner }}/n8n-ffmpeg/n8n-ffmpeg:latest
+            N8N_VERSION=${{ steps.ver.outputs.VERSION }}
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ steps.ver.outputs.VERSION }}
+            ${{ env.IMAGE_NAME }}:latest
 
