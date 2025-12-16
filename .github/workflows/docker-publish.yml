@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
   inputs:
     n8n_version:
-      description: "n8n version (example: 1.121.3)"
+      description: "n8n version (example: 1.121.4)"
       required: true
-      default: "1.121.3"
+      default: "1.121.4"
 
 
 permissions:
